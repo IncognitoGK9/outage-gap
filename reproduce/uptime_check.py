@@ -1,8 +1,8 @@
-"""Real-data check of an uptime term. Edit the csv path below to your sites34.csv. Result: gain of 0 to 2 points of median error."""
+"""Real-data check of an uptime term. Usage: python3 reproduce/uptime_check.py sites34.csv. Result: the uptime term changes the median error by -2.3 to +2.2 points across six tests."""
 import sys, numpy as np, pandas as pd, importlib.util, pathlib
 spec=importlib.util.spec_from_file_location('rs',str(__import__('pathlib').Path(__file__).with_name('run_subsampling.py'))); rs=importlib.util.module_from_spec(spec); spec.loader.exec_module(rs)
 rng=np.random.default_rng(5)
-d=pd.read_csv('sites34.csv',usecols=['device','bin','n_obs','n_unpowered','site_id'],parse_dates=['bin'])
+d=pd.read_csv(sys.argv[1],usecols=['device','bin','n_obs','n_unpowered','site_id'],parse_dates=['bin'])
 d['down']=d.n_unpowered/d.n_obs>=0.5; d['month']=d.bin.dt.to_period('M'); rows=[]
 for (s,m),g in d.groupby(['site_id','month']):
     cov=g.groupby('device').bin.nunique()/(m.days_in_month*48); devs=cov[cov>=.6].index.tolist()
