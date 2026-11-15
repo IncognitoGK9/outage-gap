@@ -16,7 +16,8 @@ from pydantic import BaseModel, Field
 from outage_gap import batch, demo
 from outage_gap.calibrate import calibrate as run_calibrate
 from outage_gap.core import CAL, SIZES, check_calibration, estimate, plan
-from outage_gap.explain import explain_curve, explain_demo, explain_estimate, explain_plan
+from outage_gap.explain import explain_curve, explain_demo, explain_estimate, explain_learned, explain_plan
+from outage_gap.learned import estimate_learned
 from outage_gap.count_events import PERIODS, count_by_site
 
 MAX_UPLOAD_MB = 60
@@ -128,6 +129,25 @@ def post_estimate(q: Query):
         raise HTTPException(422, str(e))
 
 
+class LearnedQuery(BaseModel):
+    sensors: int = Field(..., description="Sensors at the site (3 to 8).")
+    seen_by_1: int = Field(..., ge=0, description="Events seen by exactly 1 of the site's sensors.")
+    seen_by_2: int = Field(..., ge=0, description="Events seen by exactly 2 sensors.")
+    seen_by_3: int = Field(0, ge=0, description="Events seen by exactly 3 sensors.")
+    seen_by_4plus: int = Field(0, ge=0, description="Events seen by 4 or more sensors.")
+    uptime: float = Field(..., ge=0, le=1, description="Share of time the sensors reported.")
+
+
+@app.post("/estimate/learned", tags=["estimate"])
+def post_estimate_learned(q: LearnedQuery):
+    """Learned estimator (trained on synthetic sites, checked on two real Accra sites): needs the count of events by how many sensors saw them."""
+    try:
+        r = estimate_learned(q.sensors, q.seen_by_1, q.seen_by_2, q.seen_by_3, q.seen_by_4plus, q.uptime)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    return dict(asdict(r), explanation=explain_learned(r))
+
+
 @app.post("/estimate/batch", tags=["estimate"])
 def post_estimate_batch(b: BatchQuery):
     """Many sites in one JSON call. A bad row gets an 'error' entry; the other rows are still answered."""
@@ -176,7 +196,12 @@ async def post_analyze(file: UploadFile = File(..., description="Raw sensor file
     out = []
     for r in rows:
         try:
-            out.append({**r, **asdict(estimate(r["sensors"], r["events_2plus"], r["uptime_estimate"], cal))})
+            row = {**r, **asdict(estimate(r["sensors"], r["events_2plus"], r["uptime_estimate"], cal))}
+            if 3 <= r["sensors"] <= 8:
+                L = estimate_learned(r["sensors"], r["events_1_only"], r["events_seen_by_2"], r["events_seen_by_3"],
+                                     r["events_seen_by_4plus"], r["uptime_estimate"])
+                row["learned"] = dict(estimated_total=L.estimated_total, estimated_missed=L.estimated_missed, range_80=L.range_80, warnings=L.warnings)
+            out.append(row)
         except ValueError as e:
             out.append({**r, "error": str(e)})
     return out

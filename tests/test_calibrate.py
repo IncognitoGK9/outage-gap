@@ -157,6 +157,7 @@ def test_command_line():
 def test_streamlit_own_curve_flow():
     from streamlit.testing.v1 import AppTest
     at = AppTest.from_file(str(ROOT / "streamlit_app.py"), default_timeout=120).run()
+    at.radio[0].set_value(at.radio[0].options[1]).run()                    # simple division screen
     assert not at.exception and at.metric[0].value == "64.1"
     next(x for x in at.checkbox if "dummy dense" in x.label).check()
     at.run()
@@ -167,3 +168,13 @@ def test_streamlit_own_curve_flow():
     at.sidebar.radio[0].set_value("My dense sites")
     at.run()
     assert not at.exception and at.metric[0].value == "36.2"               # own curve: 24 / 0.6631
+
+
+def test_api_learned_estimate_and_analyze():
+    r = c.post("/estimate/learned", json=dict(sensors=3, seen_by_1=30, seen_by_2=12, seen_by_3=4, uptime=0.85))
+    assert r.status_code == 200 and r.json()["estimated_total"] >= 16 and r.json()["explanation"]["headline"]
+    assert c.post("/estimate/learned", json=dict(sensors=2, seen_by_1=1, seen_by_2=1, uptime=0.85)).status_code == 422
+    t = c.post("/analyze", files={"file": ("s.csv", demo.all_sparse_file(), "text/csv")}, data=dict(period="quarter")).json()
+    assert all("learned" in x for x in t if "error" not in x)
+    res = c.get("/demo/run").json()
+    assert all(s["mean_abs_error_pct_learned"] is not None for s in res["summary"])

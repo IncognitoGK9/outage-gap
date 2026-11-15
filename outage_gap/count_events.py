@@ -52,6 +52,8 @@ def _count(per, gap_min, min_sensors):
     span = (per["bin"].max() - per["bin"].min()).days + 1
     reported = per.groupby("device").bin.nunique().mean() / max((span * 48), 1)
     return {"sensors": int(sensors), "events_2plus": int(two), "events_1_only": int(sum(len(e) == 1 for e in events)),
+            "events_seen_by_2": int(sum(len(e) == 2 for e in events)), "events_seen_by_3": int(sum(len(e) == 3 for e in events)),
+            "events_seen_by_4plus": int(sum(len(e) >= 4 for e in events)),
             "days": int(span), "uptime_estimate": round(float(reported), 3)}
 
 

@@ -381,3 +381,15 @@ Zablon Ombiro, Strathmore University, Nairobi, Kenya. zablon.ombiro@strathmore.e
 ## Plain-English results
 
 Every result in the app and the API comes with a short explanation for non-technical readers: what the numbers mean, how we got there, how sure you can be, and what to do next (`outage_gap/explain.py`; the API returns it in the `explanation` field).
+
+
+## Learned estimator (new)
+
+`outage_gap/learned.py` is a gradient-boosted model trained on synthetic sites only (random uptime, outage rate, outage length and share of wide outages;
+`outage_gap/synthetic.py`). Its inputs are what a sparse site sees in its own readings: the number of events seen by exactly 1, 2, 3 and 4 or more of its
+sensors, and its uptime. The count script `python -m outage_gap count` now reports these numbers. The model is stored as JSON (no scikit-learn needed to run it).
+Rebuild: `PYTHONPATH=. python3 calibration/build_learned_model.py` (needs scikit-learn). Experiments and their log: `reproduce/ml/`.
+
+Tested on subsets of two dense Accra sites (86 site-months), three sensors, median monthly error: raw count 63 and 71 percent, division with the share
+from the other site 45 percent, learned model 28 and 29 percent. With 8 sensors it is not clearly better. In a 6 site-month check in Sierra Leone it was not
+better than the raw count. Ranges are calibrated on real Accra errors; calibrated on one site, they covered the truth 76 to 83 percent at the other at three sensors.

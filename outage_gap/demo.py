@@ -18,6 +18,7 @@ import pandas as pd
 from .calibrate import calibrate
 from .core import estimate
 from .count_events import count_by_site, count_events
+from .learned import estimate_learned
 
 N_SENSORS = 16
 WORLDS = {"A": dict(uptime=0.90, wide_share=0.45, outages_per_month=38),
@@ -121,6 +122,11 @@ def run():
             row[f"{tag}_estimate"] = e.estimated_total
             row[f"{tag}_error_pct"] = round(100 * (e.estimated_total - true) / true, 1)
             row[f"{tag}_in_range"] = e.range_80[0] <= true <= e.range_80[1]
+        if 3 <= r["sensors"] <= 8:
+            L = estimate_learned(r["sensors"], r["events_1_only"], r["events_seen_by_2"], r["events_seen_by_3"], r["events_seen_by_4plus"], r["uptime_estimate"])
+            row["learned_estimate"] = L.estimated_total
+            row["learned_error_pct"] = round(100 * (L.estimated_total - true) / true, 1)
+            row["learned_in_range"] = L.range_80[0] <= true <= L.range_80[1]
         row["counted_error_pct"] = round(100 * (r["events_2plus"] - true) / true, 1)
         rows.append(row)
     t = pd.DataFrame(rows)
@@ -128,7 +134,8 @@ def run():
     for site, g in t.groupby("site"):
         summary.append(dict(site=site, mean_abs_error_pct_raw_count=round(g.counted_error_pct.abs().mean(), 1),
                             mean_abs_error_pct_accra_curve=round(g.accra_error_pct.abs().mean(), 1),
-                            mean_abs_error_pct_own_curve=round(g.own_error_pct.abs().mean(), 1)))
+                            mean_abs_error_pct_own_curve=round(g.own_error_pct.abs().mean(), 1),
+                            mean_abs_error_pct_learned=round(g.learned_error_pct.abs().mean(), 1) if "learned_error_pct" in g else None))
     return dict(rows=rows, summary=summary, own_curve=cal, note=(
         "Synthetic data. 'accra' uses the shipped curve; 'own' uses a curve measured on the two dense dummy sites. "
         "The truth is known because the data was generated."))

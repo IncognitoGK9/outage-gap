@@ -59,7 +59,9 @@ def test_streamlit_screen():
     from streamlit.testing.v1 import AppTest
     at = AppTest.from_file(str(pathlib.Path(__file__).parent.parent / "streamlit_app.py")).run()
     assert not at.exception
-    assert at.metric[0].value == "64.1"
+    assert "Learned" in at.radio[0].value and float(at.metric[0].value) > 16        # learned estimator is the first screen
+    at.radio[0].set_value(at.radio[0].options[1]).run()
+    assert not at.exception and at.metric[0].value == "64.1"
 
 
 def test_batch():
@@ -93,3 +95,27 @@ def test_plain_english_explanations():
     assert "counted 24 outages" in e["headline"] and len(e["steps"]) == 3 and e["how_sure"]
     assert "very wide" in e["how_sure"]            # k=3 range is 0.54 to 3.35 times
     assert "sensors" in explain_plan(plan(0.5))["headline"]
+
+
+def test_learned_estimator_matches_sklearn_and_is_sensible():
+    from outage_gap.learned import estimate_learned, SIZES
+    from outage_gap.explain import explain_learned
+    assert SIZES == [3, 4, 5, 6, 7, 8]
+    r = estimate_learned(3, 30, 12, 4, 0, 0.85)
+    assert r.counted_events == 16 and r.estimated_total >= 16 and r.range_80[0] <= r.estimated_total <= r.range_80[1]
+    assert "about" in explain_learned(r)["headline"]
+    for bad in [(2, 1, 1, 0, 0, .8), (3, -1, 1, 0, 0, .8), (3, 1, 1, 0, 0, 1.5), (3, 1, 1, 0, 2, .8)]:
+        with pytest.raises(ValueError):
+            estimate_learned(*bad)
+
+
+def test_learned_json_equals_sklearn_model():
+    """The JSON trees give the same numbers as the scikit-learn model that produced them (retrained with the same seeds)."""
+    import numpy as np
+    from sklearn.ensemble import GradientBoostingRegressor
+    from outage_gap.synthetic import FEATURES, draw_worlds
+    from outage_gap.learned import _predict_one
+    S = draw_worlds(n_worlds=1500, seed=1); S["o"] = np.maximum(S.obs, 1)
+    gb = GradientBoostingRegressor(n_estimators=250, max_depth=4, learning_rate=0.05, subsample=0.7, random_state=1).fit(S[list(FEATURES)].to_numpy(), np.log(S.full / S.o))
+    X = S[list(FEATURES)].to_numpy()[:200]
+    assert np.allclose(gb.predict(X), [_predict_one(x) for x in X], atol=1e-6)

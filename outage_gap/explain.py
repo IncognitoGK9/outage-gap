@@ -80,3 +80,25 @@ def explain_demo(res):
         how_sure=("Where the own curve wins, measuring your own curve helps. The site named 'smalloutages' is a warning: "
                   "there the own curve is wrong and nothing in the counts shows it (the Accra curve looks best there by chance). Check your curve against dense sites "
                   "that look like the place you want to estimate."))
+
+
+def explain_learned(r):
+    """r: LearnedEstimate. Plain-English reading of the learned estimate."""
+    k, seen = r.sensors, r.seen_by
+    tot, missed, (lo, hi) = r.estimated_total, r.estimated_missed, r.range_80
+    headline = (f"Your site with {k} sensors counted {r.counted_events} outages (events seen by 2 or more sensors). "
+                f"We think the real number is about {_n(tot)}, so about {_n(missed)} were missed.")
+    steps = [
+        f"The model looks at how your {k} sensors saw each event: {seen['one']} events by one sensor only, {seen['two']} by two, "
+        f"{seen['three']} by three and {seen['four_or_more']} by four or more.",
+        "Many events seen by one sensor only, compared with events seen by two, are a sign that many outages were seen by too few "
+        "sensors to count. This is the same idea as estimating unseen species from how many were seen once and twice.",
+        f"The model was taught on invented sites, where the true count is known, and then checked on two real sites in Accra.",
+        f"We are fairly sure (80 in 100 times) that the real number lies between {_n(lo)} and {_n(hi)}.",
+    ]
+    ratio = hi / lo if lo > 0 else float("inf")
+    how = ("The range is fairly narrow." if ratio <= 2.2 else "The range is wide. Use the estimate as a rough size, not an exact number.")
+    how += (" In our checks at the two Accra sites, this model was closer than a simple correction for sites with 3 to 5 sensors, "
+            "and not clearly better with 8 sensors. It was not better than the raw count in a small check in Sierra Leone.")
+    return dict(headline=headline, steps=steps, how_sure=how,
+                advice="Check the model against dense sites of your own place before using it for decisions.")

@@ -6,7 +6,8 @@ import streamlit as st
 from outage_gap import demo
 from outage_gap.batch import run as run_batch
 from outage_gap.calibrate import calibrate
-from outage_gap.explain import explain_curve, explain_demo, explain_estimate, explain_plan
+from outage_gap.explain import explain_curve, explain_demo, explain_estimate, explain_learned, explain_plan
+from outage_gap.learned import estimate_learned
 from outage_gap.core import CAL, check_calibration, estimate, plan, sizes_of
 from outage_gap.count_events import count_by_site
 
@@ -32,26 +33,52 @@ tabs = st.tabs(["1 Estimate", "2 Your own curve", "3 Raw sensor files", "4 Dummy
 
 # ---- 1 Estimate --------------------------------------------------------------------------------------------
 with tabs[0]:
-    c1, c2 = st.columns(2)
-    sensors = c1.number_input("Sensors at the site", min_value=sizes[0], max_value=sizes[-1], value=min(max(3, sizes[0]), sizes[-1]), step=1)
-    events = c2.number_input("Outage events counted in the period", min_value=0, value=24, step=1)
-    use_uptime = st.checkbox("I know the sensors' uptime")
-    uptime = st.slider("Sensor uptime (share of time reporting)", 0.0, 1.0, 0.8, 0.05) if use_uptime else None
-    r = estimate(int(sensors), int(events), uptime, cal)
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Estimated total", f"{r.estimated_total:g}")
-    m2.metric("Counted", r.observed_events)
-    m3.metric("Estimated missed", f"{r.estimated_missed:g}")
-    ex = explain_estimate(r)
-    st.success("**What this means.** " + ex["headline"])
-    st.markdown("**How we got there**\n" + "\n".join(f"{i}. {t}" for i, t in enumerate(ex["steps"], 1)))
-    st.info("**How sure can you be?** " + ex["how_sure"] + " " + ex["advice"])
-    st.caption("In the chart: Counted is what the site saw; Low and High are the 80% range; Estimate is the best guess.")
-    chart = pd.DataFrame({"Bar": ["1 Counted", "2 Low", "3 Estimate", "4 High"],
-                          "Outages": [r.observed_events, r.range_80[0], r.estimated_total, r.range_80[1]]})
-    st.bar_chart(chart, x="Bar", y="Outages", x_label="", height=230)
-    for w in r.warnings:
-        st.warning(w)
+    mode = st.radio("Method", ["Learned estimator (better, needs counts by number of sensors)", "Simple division (needs only the count)"], horizontal=False)
+    if mode.startswith("Learned"):
+        st.caption("A model trained on synthetic sites and checked on two real Accra sites. Use 'Raw sensor files' (tab 3) to get these counts from your own file.")
+        a1, a2, a3 = st.columns(3)
+        ks = a1.number_input("Sensors at the site", 3, 8, 3, 1)
+        up = a2.slider("Sensor uptime (share of time reporting)", 0.0, 1.0, 0.85, 0.05)
+        n1 = a3.number_input("Events seen by 1 sensor only", 0, value=30, step=1)
+        b1, b2, b3 = st.columns(3)
+        n2 = b1.number_input("Events seen by exactly 2 sensors", 0, value=12, step=1)
+        n3 = b2.number_input("Events seen by exactly 3 sensors", 0, value=4 if ks >= 3 else 0, step=1)
+        n4 = b3.number_input("Events seen by 4 or more sensors", 0, value=0, step=1)
+        try:
+            L = estimate_learned(int(ks), int(n1), int(n2), int(n3), int(n4), float(up))
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Estimated total", f"{L.estimated_total:g}")
+            m2.metric("Counted (2 or more sensors)", L.counted_events)
+            m3.metric("Estimated missed", f"{L.estimated_missed:g}")
+            ex = explain_learned(L)
+            st.success("**What this means.** " + ex["headline"])
+            st.markdown("**How we got there**\n" + "\n".join(f"{i}. {t}" for i, t in enumerate(ex["steps"], 1)))
+            st.info("**How sure can you be?** " + ex["how_sure"] + " " + ex["advice"])
+            for w in L.warnings:
+                st.warning(w)
+        except ValueError as e:
+            st.error(str(e))
+    else:
+        c1, c2 = st.columns(2)
+        sensors = c1.number_input("Sensors at the site", min_value=sizes[0], max_value=sizes[-1], value=min(max(3, sizes[0]), sizes[-1]), step=1)
+        events = c2.number_input("Outage events counted in the period", min_value=0, value=24, step=1)
+        use_uptime = st.checkbox("I know the sensors' uptime")
+        uptime = st.slider("Sensor uptime (share of time reporting)", 0.0, 1.0, 0.8, 0.05) if use_uptime else None
+        r = estimate(int(sensors), int(events), uptime, cal)
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Estimated total", f"{r.estimated_total:g}")
+        m2.metric("Counted", r.observed_events)
+        m3.metric("Estimated missed", f"{r.estimated_missed:g}")
+        ex = explain_estimate(r)
+        st.success("**What this means.** " + ex["headline"])
+        st.markdown("**How we got there**\n" + "\n".join(f"{i}. {t}" for i, t in enumerate(ex["steps"], 1)))
+        st.info("**How sure can you be?** " + ex["how_sure"] + " " + ex["advice"])
+        st.caption("In the chart: Counted is what the site saw; Low and High are the 80% range; Estimate is the best guess.")
+        chart = pd.DataFrame({"Bar": ["1 Counted", "2 Low", "3 Estimate", "4 High"],
+                              "Outages": [r.observed_events, r.range_80[0], r.estimated_total, r.range_80[1]]})
+        st.bar_chart(chart, x="Bar", y="Outages", x_label="", height=230)
+        for w in r.warnings:
+            st.warning(w)
 
 # ---- 2 Your own curve --------------------------------------------------------------------------------------
 with tabs[1]:
@@ -115,15 +142,20 @@ with tabs[2]:
             for x in rows:
                 try:
                     e = estimate(x["sensors"], x["events_2plus"], x["uptime_estimate"], cal)
-                    out.append(dict(site=x["site"], period=x["period"], sensors=x["sensors"], counted=x["events_2plus"],
-                                    estimated_total=e.estimated_total, estimated_missed=e.estimated_missed,
-                                    low_80=e.range_80[0], high_80=e.range_80[1], uptime=x["uptime_estimate"]))
+                    row = dict(site=x["site"], period=x["period"], sensors=x["sensors"], counted=x["events_2plus"],
+                               estimated_total=e.estimated_total, estimated_missed=e.estimated_missed,
+                               low_80=e.range_80[0], high_80=e.range_80[1], uptime=x["uptime_estimate"])
+                    if 3 <= x["sensors"] <= 8:
+                        L = estimate_learned(x["sensors"], x["events_1_only"], x["events_seen_by_2"], x["events_seen_by_3"],
+                                             x["events_seen_by_4plus"], x["uptime_estimate"])
+                        row.update(learned_total=L.estimated_total, learned_low_80=L.range_80[0], learned_high_80=L.range_80[1])
+                    out.append(row)
                 except ValueError as err:
                     out.append(dict(site=x["site"], period=x["period"], sensors=x["sensors"], counted=x["events_2plus"], error=str(err)))
             table = pd.DataFrame(out)
             st.markdown("**In words.** Each row is one site and period. 'counted' is what the sensors saw; 'estimated_total' is our "
                         "best guess of the real number; 'low_80' and 'high_80' are the range we are fairly sure about; "
-                        "'uptime' is how much of the time the sensors reported.")
+                        "'uptime' is how much of the time the sensors reported. The columns starting with 'learned' come from the learned estimator, which also uses how many sensors saw each event.")
             st.dataframe(table, hide_index=True)
             st.download_button("Download estimates (CSV)", table.to_csv(index=False), "outage_gap_analysis.csv", "text/csv")
             st.caption(f"Curve used: {choice}. Short periods are noisy; prefer quarters or years.")
@@ -145,15 +177,16 @@ with tabs[3]:
         st.write("**Details. Mean absolute error by site (percent)**: raw count, shipped Accra curve, own curve measured on the dummy dense sites.")
         st.dataframe(pd.DataFrame(res["summary"]).rename(columns={
             "mean_abs_error_pct_raw_count": "Raw count", "mean_abs_error_pct_accra_curve": "Accra curve",
-            "mean_abs_error_pct_own_curve": "Own curve"}), hide_index=True)
+            "mean_abs_error_pct_own_curve": "Own curve", "mean_abs_error_pct_learned": "Learned model"}), hide_index=True)
         st.write("**Quarter by quarter** (estimates and errors in percent against the true count)")
         st.dataframe(df[["site", "quarter", "sensors", "counted", "true", "accra_estimate", "own_estimate", "accra_error_pct", "own_error_pct"]]
                      .rename(columns={"accra_estimate": "Accra est.", "own_estimate": "Own est.", "accra_error_pct": "Accra err %",
                                       "own_error_pct": "Own err %"}), hide_index=True)
         st.info("The own curve is close in its own world (first, third and fourth sites). The Accra curve over-corrects there, "
                 "because the dummy world detects more outages. The site with mostly small outages breaks the own curve and no "
-                "warning appears: only dense sites near that site could show it. "
-                "(The Accra curve looks good on that site by chance.)")
+                "warning appears: only dense sites near that site could show it. The learned model copes better there because it "
+                "also looks at how many sensors saw each event. Caution: the dummy sites come from a generator like the one used to "
+                "train the learned model, so this is a working test, not proof that it transfers to real places.")
     if st.button("Prepare the dummy files for download"):
         st.session_state["dummy_files"] = (demo.all_dense_file(), demo.all_sparse_file())
     if "dummy_files" in st.session_state:
