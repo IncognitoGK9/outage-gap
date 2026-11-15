@@ -8,7 +8,7 @@ OutageGap takes the number of outages a small plug-in sensor site counted (3 to 
 
 ![OutageGap app](docs/screenshot_streamlit.png)
 
-- **Live app:** https://outage-gap.streamlit.app *(works once the app is deployed, see [Deploy](#deploy-the-app-free-streamlit-community-cloud))*
+- **Live app:** https://outage-gap.streamlit.app (free Streamlit Community Cloud; it may need a click to wake up after a quiet period)
 - **Code:** https://github.com/incognitogk9/outage-gap
 
 ## Contents
