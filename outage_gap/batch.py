@@ -7,7 +7,8 @@ FIELDS = ["site", "sensors", "observed_events", "uptime", "detection_share", "es
           "estimated_missed", "low_80", "high_80", "interpolated", "warnings"]
 
 
-def run(text: str) -> str:
+def run(text: str, cal=None) -> str:
+    """Estimate every row of a CSV. `cal` is an optional own calibration (see outage_gap.calibrate)."""
     out = io.StringIO()
     w = csv.DictWriter(out, fieldnames=FIELDS, lineterminator="\n")
     w.writeheader()
@@ -15,7 +16,7 @@ def run(text: str) -> str:
         site = row.get("site") or f"row{i}"
         try:
             up = row.get("uptime")
-            r = estimate(int(row["sensors"]), int(row["observed_events"]), float(up) if up not in (None, "") else None)
+            r = estimate(int(row["sensors"]), int(row["observed_events"]), float(up) if up not in (None, "") else None, cal)
             w.writerow(dict(site=site, sensors=r.sensors, observed_events=r.observed_events, uptime=up or "",
                             detection_share=r.detection_share, estimated_total=r.estimated_total,
                             estimated_missed=r.estimated_missed, low_80=r.range_80[0], high_80=r.range_80[1],

@@ -7,23 +7,24 @@
 
 ## What you need
 1. Sensor records per site with a timestamp and an on-battery flag (or any power-on/power-off report).
-2. A count of events per site and period, made with the same rule as the paper (see README).
+2. A count of events per site and period, made with the same rule as the paper (see README). `python -m outage_gap count` or `analyze` does this from a raw file.
 3. The sensor count per site, and if you can, the share of time the sensors reported (uptime).
 4. A laptop or phone with a browser. The CSV tool (`python -m outage_gap`) needs only Python and works without internet after installation.
 
 ## A realistic workflow
 1. **Count** events per site and month with the paper's rule.
 2. **Check uptime.** If it is below 0.65 at many sites, do not trust the curve; fix the sensors first.
-3. **Run the CSV tool** on all sites at once. Review the `warnings` column.
+3. **Run `analyze`** on all sparse sites at once (or the CSV tool if you already have counts). Review the `warnings` column.
 4. **Report quarters or years**, not single months, and report the 80% range next to the corrected count.
 5. **Say what the number is**: a corrected count of outages that two or more sensors would have seen, not a utility record.
 
-## Recalibrating for a new city
-The curve was measured in Accra. A second city needs its own dense reference site (about 15 or more sensors under one transformer for several months):
-1. Extract the events of the dense site with the paper's rule.
-2. Run `reproduce/run_subsampling.py` on its device file (columns: `device, bin, n_obs, n_unpowered, site_id`). Save the bin counts as in `reproduce/extract_sites.py`.
-3. Run `calibration/build_calibration.py` and replace `outage_gap/calibration.json`.
-4. Compare the new detection shares with 0.37 (3 sensors), 0.47 (5) and 0.62 (8). If they differ by more than a few points, the Accra curve should not be used there.
+## Recalibrating for a new city (about ten minutes of work)
+The shipped curve was measured in Accra. A new city needs its own dense reference: sites with 8 or more sensors (15 or more is better), for at least 6 site-months (24 or more is better), preferably two or more sites.
+1. Put the dense sites' sensor records in one CSV (`device, bin, n_obs, n_unpowered`, or `device, time, on_battery`, plus an optional `site` column).
+2. Measure the curve: `python -m outage_gap calibrate dense_sites.csv -o my_curve.json` (or tab 2 of the web app, or `POST /calibrate`).
+3. Read the notes it prints. Compare the shares with Accra's 0.37 (3 sensors), 0.47 (5) and 0.62 (8). If they differ, the Accra curve was wrong for your city and yours is the one to use.
+4. Use it everywhere: `python -m outage_gap analyze sparse_sites.csv --curve my_curve.json`.
+To practise first, use the dummy sites: `python -m outage_gap demo --out dummy/`.
 
 ## What it cannot do
 - It cannot find outages that no sensor saw, or transformers with no sensor.

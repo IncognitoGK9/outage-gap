@@ -1,24 +1,80 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Missed-outage estimator</title>
-<style>body{font-family:system-ui,sans-serif;max-width:640px;margin:2rem auto;padding:0 1rem;color:#222}
-label{display:block;margin:.8rem 0 .2rem;font-weight:600}input,select{font-size:1rem;padding:.4rem;width:100%;box-sizing:border-box}
-button{margin-top:1rem;font-size:1rem;padding:.6rem 1.2rem}#out{margin-top:1.5rem}
+<title>OutageGap</title>
+<style>body{font-family:system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222;line-height:1.45}
+h2{margin-top:2.2rem;border-top:1px solid #ddd;padding-top:1rem}label{display:block;margin:.8rem 0 .2rem;font-weight:600}
+input,select{font-size:1rem;padding:.4rem;width:100%;box-sizing:border-box}button{margin-top:1rem;font-size:1rem;padding:.6rem 1.2rem;cursor:pointer}
 .bar{height:26px;background:#ddd;position:relative;border-radius:3px;overflow:hidden;margin:.4rem 0}
 .seen{background:#0072B2;height:100%}.rng{position:absolute;top:0;height:100%;background:rgba(213,94,0,.45)}
-.w{font-size:.9rem;color:#8a4b00}.big{font-size:1.6rem;font-weight:700}small{color:#555}</style></head><body>
-<h1>How many outages did our sparse sensor site miss?</h1>
-<p>Research prototype. Calibrated on two dense sites in Accra, Ghana. Count events seen by at least 2 sensors.</p>
-<label>Sensors at the site (3 to 8)</label><input id="k" type="number" min="3" max="8" value="3">
-<label>Outage events counted in the period</label><input id="n" type="number" min="0" value="24">
+.w{font-size:.9rem;color:#8a4b00}.big{font-size:1.6rem;font-weight:700}small{color:#555}
+table{border-collapse:collapse;font-size:.85rem;width:100%}td,th{border:1px solid #ddd;padding:.25rem .4rem;text-align:right}th{background:#f4f4f4}
+td:first-child,th:first-child{text-align:left}.box{margin-top:1rem}code{background:#f4f4f4;padding:0 .25rem}</style></head><body>
+<h1>OutageGap</h1>
+<p>How many outages did our sparse sensor site miss? Research prototype. The shipped curve was measured on two dense sites in Accra, Ghana.
+For another place, <a href="#own">measure your own curve</a> from dense sites. Full reference: <a href="/docs">/docs</a>.
+Source and README: <a href="https://github.com/incognitogk9/outage-gap">github.com/incognitogk9/outage-gap</a>.</p>
+
+<h2>1. Estimate one site</h2>
+<label>Sensors at the site</label><input id="k" type="number" min="3" max="8" value="3">
+<label>Outage events counted in the period (seen by at least 2 sensors)</label><input id="n" type="number" min="0" value="24">
 <label>Sensor uptime (optional, 0 to 1)</label><input id="u" type="number" min="0" max="1" step="0.05" placeholder="e.g. 0.8">
-<button onclick="go()">Estimate</button><div id="out"></div>
+<label>Curve</label><select id="cv"><option value="">Shipped curve (Accra)</option><option value="demo">Dummy-site curve (demo)</option></select>
+<button onclick="est()">Estimate</button><div id="out" class="box"></div>
+
+<h2 id="own">2. Your own curve from dense sites</h2>
+<p>Upload the raw sensor file of dense sites (8 or more sensors per site). Columns <code>device, bin, n_obs, n_unpowered</code> or
+<code>device, time, on_battery</code>; optional <code>site</code>. Large files take minutes: use the command line for those.</p>
+<input id="df" type="file" accept=".csv">
+<button onclick="cal(false)">Measure my curve</button> <button onclick="cal(true)">or use the dummy dense sites</button>
+<div id="calout" class="box"></div>
+
+<h2>3. From a raw sensor file of sparse sites to the answer</h2>
+<input id="sf" type="file" accept=".csv"><label>Period</label>
+<select id="per"><option>quarter</option><option>month</option><option>year</option><option>all</option></select>
+<button onclick="ana(false)">Analyse my file</button> <button onclick="ana(true)">or use the dummy sparse sites</button>
+<div id="anaout" class="box"></div>
+
+<h2>4. Dummy sites with known truth</h2>
+<p>Invented data. Two dense sites teach a curve; four sparse sites are estimated and compared with the true count.</p>
+<button onclick="demo()">Run the dummy-site test</button> <small><a href="/demo/sites">site list</a> ·
+<a href="/demo/dense.csv">dense.csv</a> · <a href="/demo/sparse.csv">sparse.csv</a></small><div id="demoout" class="box"></div>
+
+<h2>5. How many sensors does a site need?</h2>
+<label>Share of the reference outages the site should count</label><input id="t" type="number" min="0.1" max="1" step="0.05" value="0.7">
+<button onclick="plan()">Show</button><div id="planout" class="box"></div>
+
 <script>
-async function go(){const b={sensors:+k.value,observed_events:+n.value};if(u.value!=="")b.uptime=+u.value;
-const r=await fetch("/estimate",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)});
-const j=await r.json();if(!r.ok){out.innerHTML="<p class='w'>"+(j.detail&&j.detail[0]?j.detail[0].msg:j.detail)+"</p>";return}
-const hi=j.range_80[1],sc=100/hi;
-out.innerHTML=`<div class="big">${j.estimated_total} outages in total</div><div>${j.observed_events} counted, about ${j.estimated_missed} missed</div>
-<div class="bar"><div class="seen" style="width:${j.observed_events*sc}%"></div><div class="rng" style="left:${j.range_80[0]*sc}%;width:${(hi-j.range_80[0])*sc}%"></div></div>
-<small>Blue: counted. Orange: 80% range ${j.range_80[0]} to ${j.range_80[1]}. Detection share ${j.detection_share}.</small>
-<ul>${j.warnings.map(w=>"<li class='w'>"+w+"</li>").join("")}</ul>`}
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const msg=j=>j.detail?(Array.isArray(j.detail)?j.detail.map(d=>d.msg).join("; "):j.detail):"Error";
+const tbl=(rows,cols)=>"<table><tr>"+cols.map(c=>"<th>"+esc(c)+"</th>").join("")+"</tr>"+rows.map(r=>"<tr>"+cols.map(c=>"<td>"+esc(r[c]===undefined?"":r[c])+"</td>").join("")+"</tr>").join("")+"</table>";
+const warn=(el,m)=>{el.innerHTML="<p class='w'>"+esc(m)+"</p>"};
+async function est(){const b={sensors:+k.value,observed_events:+n.value};if(u.value!=="")b.uptime=+u.value;if(cv.value)b.calibration_id=cv.value;
+ const r=await fetch("/estimate",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)});const j=await r.json();
+ if(!r.ok){warn($("out"),msg(j));return}
+ const hi=j.range_80[1],sc=100/hi;
+ $("out").innerHTML=`<div class="big">${j.estimated_total} outages in total</div><div>${j.observed_events} counted, about ${j.estimated_missed} missed</div>
+ <div class="bar"><div class="seen" style="width:${j.observed_events*sc}%"></div><div class="rng" style="left:${j.range_80[0]*sc}%;width:${(hi-j.range_80[0])*sc}%"></div></div>
+ <small>Blue: counted. Orange: 80% range ${j.range_80[0]} to ${j.range_80[1]}. Detection share ${j.detection_share}.</small>
+ <ul>${j.warnings.map(w=>"<li class='w'>"+esc(w)+"</li>").join("")}</ul>`}
+async function cal(dummy){const el=$("calout");el.textContent="Working... this can take a while.";
+ let file;if(dummy){file=new Blob([await (await fetch("/demo/dense.csv")).text()],{type:"text/csv"})}else{file=$("df").files[0];if(!file){warn(el,"Choose a file first.");return}}
+ const f=new FormData();f.append("file",file,"dense.csv");f.append("draws","20");
+ const r=await fetch("/calibrate",{method:"POST",body:f});const j=await r.json();if(!r.ok){warn(el,msg(j));return}
+ const o=document.createElement("option");o.value=j.calibration_id;o.textContent="Your curve "+j.calibration_id;cv.appendChild(o);cv.value=j.calibration_id;
+ el.innerHTML=`<p>Calibration id <code>${j.calibration_id}</code> is now selected in section 1 (kept in memory only; download the curve to keep it).</p>`+
+  tbl(j.summary.map(s=>({sensors:s.sensors,share:s.detection_share,"range 10%":s.range_10_90_pct[0]+"%","range 90%":"+"+s.range_10_90_pct[1]+"%","median error":Math.round(100*s.median_single_month_error)+"%"})),["sensors","share","range 10%","range 90%","median error"])+
+  j.warnings.map(w=>"<p class='w'>"+esc(w)+"</p>").join("")+
+  `<p><a download="my_curve.json" href="data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(j.calibration,null,2))}">Download my curve (JSON)</a></p>`}
+async function ana(dummy){const el=$("anaout");el.textContent="Working...";
+ let file;if(dummy){file=new Blob([await (await fetch("/demo/sparse.csv")).text()],{type:"text/csv"})}else{file=$("sf").files[0];if(!file){warn(el,"Choose a file first.");return}}
+ const f=new FormData();f.append("file",file,"sparse.csv");f.append("period",$("per").value);if(cv.value)f.append("calibration_id",cv.value);
+ const r=await fetch("/analyze",{method:"POST",body:f});const j=await r.json();if(!r.ok){warn(el,msg(j));return}
+ el.innerHTML="<small>Curve: "+(cv.value?esc(cv.value):"shipped Accra")+"</small>"+tbl(j.map(x=>({site:x.site,period:x.period,sensors:x.sensors,counted:x.events_2plus,"estimated total":x.estimated_total,"80% range":x.range_80?x.range_80.join(" to "):x.error})),["site","period","sensors","counted","estimated total","80% range"])}
+async function demo(){const el=$("demoout");el.textContent="Working...";const r=await fetch("/demo/run");const j=await r.json();
+ el.innerHTML="<p><b>Mean absolute error by site, percent</b>: raw count, shipped Accra curve, own curve from the dummy dense sites.</p>"+
+  tbl(j.summary.map(s=>({site:s.site,"raw count":s.mean_abs_error_pct_raw_count,"Accra curve":s.mean_abs_error_pct_accra_curve,"own curve":s.mean_abs_error_pct_own_curve})),["site","raw count","Accra curve","own curve"])+
+  "<p class='w'>The own curve works in its own world. The site with mostly small outages breaks it and no warning appears: only dense sites near that site can show it. The Accra curve looks good there by chance.</p>"+
+  tbl(j.rows,["site","quarter","sensors","counted","true","accra_estimate","own_estimate","accra_error_pct","own_error_pct"])}
+async function plan(){const r=await fetch("/plan?target_share="+$("t").value+(cv.value?"&calibration_id="+cv.value:""));const j=await r.json();if(!r.ok){warn($("planout"),msg(j));return}
+ $("planout").innerHTML="<p class='big'>"+(j.sensors_needed?j.sensors_needed+" sensors":"Not reached")+"</p>"+tbl(j.table.map(x=>({sensors:x.sensors,"share counted":x.detection_share,"missed per 100":x.missed_per_100})),["sensors","share counted","missed per 100"])+"<p><small>"+esc(j.note)+"</small></p>"}
 </script></body></html>
