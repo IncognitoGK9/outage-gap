@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+sites34.csv
+*.parquet
+.access_token
+.env
+.DS_Store

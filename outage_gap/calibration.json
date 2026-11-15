@@ -1,0 +1,111 @@
+{
+  "source": "Accra dense sites 3 and 4, 86 site-months, Jan 2021 - Jul 2024; counting rule: events seen by 2+ sensors, rebuilt from the sensors the site has",
+  "k": {
+    "3": {
+      "c": 0.3745,
+      "c_site_min": 0.319,
+      "c_site_max": 0.4184,
+      "err_q10": -0.7014,
+      "err_q50": -0.1036,
+      "err_q90": 0.8579,
+      "median_abs_err": 0.4369,
+      "n_draws": 3440,
+      "c_any_one_sensor": 0.607,
+      "c_events_fixed_at_full_site": 0.3397
+    },
+    "4": {
+      "c": 0.4268,
+      "c_site_min": 0.3622,
+      "c_site_max": 0.4779,
+      "err_q10": -0.6687,
+      "err_q50": -0.0584,
+      "err_q90": 0.8407,
+      "median_abs_err": 0.395,
+      "n_draws": 3440,
+      "c_any_one_sensor": 0.6811,
+      "c_events_fixed_at_full_site": 0.3909
+    },
+    "5": {
+      "c": 0.4702,
+      "c_site_min": 0.4129,
+      "c_site_max": 0.5156,
+      "err_q10": -0.6125,
+      "err_q50": -0.0312,
+      "err_q90": 0.7539,
+      "median_abs_err": 0.3534,
+      "n_draws": 3440,
+      "c_any_one_sensor": 0.741,
+      "c_events_fixed_at_full_site": 0.4353
+    },
+    "6": {
+      "c": 0.5204,
+      "c_site_min": 0.4582,
+      "c_site_max": 0.5695,
+      "err_q10": -0.6009,
+      "err_q50": -0.0123,
+      "err_q90": 0.6789,
+      "median_abs_err": 0.3171,
+      "n_draws": 3440,
+      "c_any_one_sensor": 0.7902,
+      "c_events_fixed_at_full_site": 0.4831
+    },
+    "7": {
+      "c": 0.573,
+      "c_site_min": 0.5174,
+      "c_site_max": 0.617,
+      "err_q10": -0.5398,
+      "err_q50": 0.0084,
+      "err_q90": 0.5876,
+      "median_abs_err": 0.2885,
+      "n_draws": 3440,
+      "c_any_one_sensor": 0.8316,
+      "c_events_fixed_at_full_site": 0.5354
+    },
+    "8": {
+      "c": 0.6193,
+      "c_site_min": 0.5674,
+      "c_site_max": 0.6602,
+      "err_q10": -0.5065,
+      "err_q50": 0.0098,
+      "err_q90": 0.5421,
+      "median_abs_err": 0.2707,
+      "n_draws": 3440,
+      "c_any_one_sensor": 0.867,
+      "c_events_fixed_at_full_site": 0.5788
+    }
+  },
+  "saturation": {
+    "3": {
+      "c": 0.3745,
+      "c_any_one_sensor": 0.607
+    },
+    "4": {
+      "c": 0.4268,
+      "c_any_one_sensor": 0.6811
+    },
+    "5": {
+      "c": 0.4702,
+      "c_any_one_sensor": 0.741
+    },
+    "6": {
+      "c": 0.5204,
+      "c_any_one_sensor": 0.7902
+    },
+    "7": {
+      "c": 0.573,
+      "c_any_one_sensor": 0.8316
+    },
+    "8": {
+      "c": 0.6193,
+      "c_any_one_sensor": 0.867
+    },
+    "12": {
+      "c": 0.8124,
+      "c_any_one_sensor": 0.9602
+    },
+    "16": {
+      "c": 0.9507,
+      "c_any_one_sensor": 0.9936
+    }
+  }
+}

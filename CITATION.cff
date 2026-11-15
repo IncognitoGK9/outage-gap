@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use OutageGap, please cite the paper."
+title: "OutageGap: estimating outages missed by sparse plug-in sensor sites"
+authors:
+  - family-names: Ombiro
+    given-names: Zablon
+    affiliation: "Strathmore University, Nairobi, Kenya"
+repository-code: "https://github.com/incognitogk9/outage-gap"
+license: MIT
+version: 0.1.0
+preferred-citation:
+  type: conference-paper
+  title: "Detection-Curve Correction of Missed-Outage Counts at Sparse Plug-In Sensor Sites: Subsampling Evaluation on Dense Sites"
+  authors:
+    - family-names: Ombiro
+      given-names: Zablon
+  collection-title: "MIPRO 2027 (submitted)"
+  year: 2027

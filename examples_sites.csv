@@ -1,0 +1,6 @@
+site,sensors,observed_events,uptime
+Site A,3,24,0.80
+Site B,3,9,0.55
+Site C,5,31,0.82
+Site D,8,40,
+Site E,2,10,0.80

@@ -1,0 +1,24 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Missed-outage estimator</title>
+<style>body{font-family:system-ui,sans-serif;max-width:640px;margin:2rem auto;padding:0 1rem;color:#222}
+label{display:block;margin:.8rem 0 .2rem;font-weight:600}input,select{font-size:1rem;padding:.4rem;width:100%;box-sizing:border-box}
+button{margin-top:1rem;font-size:1rem;padding:.6rem 1.2rem}#out{margin-top:1.5rem}
+.bar{height:26px;background:#ddd;position:relative;border-radius:3px;overflow:hidden;margin:.4rem 0}
+.seen{background:#0072B2;height:100%}.rng{position:absolute;top:0;height:100%;background:rgba(213,94,0,.45)}
+.w{font-size:.9rem;color:#8a4b00}.big{font-size:1.6rem;font-weight:700}small{color:#555}</style></head><body>
+<h1>How many outages did our sparse sensor site miss?</h1>
+<p>Research prototype. Calibrated on two dense sites in Accra, Ghana. Count events seen by at least 2 sensors.</p>
+<label>Sensors at the site (3 to 8)</label><input id="k" type="number" min="3" max="8" value="3">
+<label>Outage events counted in the period</label><input id="n" type="number" min="0" value="24">
+<label>Sensor uptime (optional, 0 to 1)</label><input id="u" type="number" min="0" max="1" step="0.05" placeholder="e.g. 0.8">
+<button onclick="go()">Estimate</button><div id="out"></div>
+<script>
+async function go(){const b={sensors:+k.value,observed_events:+n.value};if(u.value!=="")b.uptime=+u.value;
+const r=await fetch("/estimate",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)});
+const j=await r.json();if(!r.ok){out.innerHTML="<p class='w'>"+(j.detail&&j.detail[0]?j.detail[0].msg:j.detail)+"</p>";return}
+const hi=j.range_80[1],sc=100/hi;
+out.innerHTML=`<div class="big">${j.estimated_total} outages in total</div><div>${j.observed_events} counted, about ${j.estimated_missed} missed</div>
+<div class="bar"><div class="seen" style="width:${j.observed_events*sc}%"></div><div class="rng" style="left:${j.range_80[0]*sc}%;width:${(hi-j.range_80[0])*sc}%"></div></div>
+<small>Blue: counted. Orange: 80% range ${j.range_80[0]} to ${j.range_80[1]}. Detection share ${j.detection_share}.</small>
+<ul>${j.warnings.map(w=>"<li class='w'>"+w+"</li>").join("")}</ul>`}
+</script></body></html>
