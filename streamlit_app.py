@@ -138,8 +138,11 @@ with tabs[3]:
                 "because the dummy world detects more outages. The site with mostly small outages breaks the own curve and no "
                 "warning appears: only dense sites near that site could show it. "
                 "(The Accra curve looks good on that site by chance.)")
-    st.download_button("Download dummy dense sites (CSV)", demo.all_dense_file(), "dummy_dense.csv", "text/csv")
-    st.download_button("Download dummy sparse sites (CSV)", demo.all_sparse_file(), "dummy_sparse.csv", "text/csv")
+    if st.button("Prepare the dummy files for download"):
+        st.session_state["dummy_files"] = (demo.all_dense_file(), demo.all_sparse_file())
+    if "dummy_files" in st.session_state:
+        st.download_button("Download dummy dense sites (CSV)", st.session_state["dummy_files"][0], "dummy_dense.csv", "text/csv")
+        st.download_button("Download dummy sparse sites (CSV)", st.session_state["dummy_files"][1], "dummy_sparse.csv", "text/csv")
 
 # ---- 5 Plan sensors ----------------------------------------------------------------------------------------
 with tabs[4]:

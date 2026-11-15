@@ -49,30 +49,38 @@ def _truth(full, site, period="quarter"):
     return {r["period"]: r["events_2plus"] for r in count_by_site(full, period)}
 
 
+SPARSE_SPEC = [("DUMMY-sparse-3", "A", 3, 201), ("DUMMY-sparse-5", "A", 5, 202), ("DUMMY-sparse-8", "A", 8, 203),
+               ("DUMMY-sparse-3-smalloutages", "B", 3, 204)]
+DENSE_SITES = ("DUMMY-dense-1", "DUMMY-dense-2")
+
+
+def _catalog():
+    cat = [dict(site=s, role="dense", sensors=N_SENSORS, months=9, world="A", note="use to calibrate your own curve")
+           for s in DENSE_SITES]
+    for site, world, k, _ in SPARSE_SPEC:
+        cat.append(dict(site=site, role="sparse", sensors=k, months=12, world=world,
+                        note="same world as the dense dummy sites" if world == "A" else
+                             "different world: same uptime, but most outages reach only one or two sensors; no warning can detect this from the counts"))
+    return cat
+
+
 @functools.lru_cache(maxsize=1)
 def build():
     """Generate the dummy sites once. Returns dict with dense, sparse (DataFrames), truth (dict) and catalog (list)."""
     dense = pd.concat([make_site("DUMMY-dense-1", "A", N_SENSORS, 9, 101),
                        make_site("DUMMY-dense-2", "A", N_SENSORS, 9, 102)], ignore_index=True)
-    spec = [("DUMMY-sparse-3", "A", 3, 201), ("DUMMY-sparse-5", "A", 5, 202), ("DUMMY-sparse-8", "A", 8, 203),
-            ("DUMMY-sparse-3-smalloutages", "B", 3, 204)]
-    sparse, truth, catalog = [], {}, []
-    for site, world, k, seed in spec:
+    sparse, truth = [], {}
+    for site, world, k, seed in SPARSE_SPEC:
         full = make_site(site, world, N_SENSORS, 12, seed)
         keep = sorted(full.device.unique())[:k]
         sparse.append(full[full.device.isin(keep)])
         truth[site] = _truth(full, site)
-        catalog.append(dict(site=site, role="sparse", sensors=k, months=12, world=world,
-                            note="same world as the dense dummy sites" if world == "A" else
-                                 "different world: same uptime, but most outages reach only one or two sensors; no warning can detect this from the counts"))
-    for site in ("DUMMY-dense-1", "DUMMY-dense-2"):
-        catalog.insert(0, dict(site=site, role="dense", sensors=N_SENSORS, months=9, world="A",
-                               note="use to calibrate your own curve"))
-    return dict(dense=dense, sparse=pd.concat(sparse, ignore_index=True), truth=truth, catalog=catalog)
+    return dict(dense=dense, sparse=pd.concat(sparse, ignore_index=True), truth=truth, catalog=_catalog())
 
 
 def catalog():
-    return build()["catalog"]
+    """List of dummy sites. Static: does not generate any data."""
+    return _catalog()
 
 
 def site_file(site):
