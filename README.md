@@ -130,7 +130,7 @@ The script was checked on the real nLine rows of the two dense sites: for all 86
 
 ## Limits
 
-- Two dense sites in one city. **Not tested in other cities.** The sites differ: at 3 sensors the share is 0.42 at one and 0.32 at the other, and the cross-site mean error is about +28% and −23%.
+- Two dense sites in one city. **The curve did not transfer to Sierra Leone** in a preliminary check (`reproduce/second_region_check.py`): in the only 6 site-months there with 8 sensors (3 sites), 3 of the 8 sensors counted 79% of the events of the 8, against 60% in Accra under the same 8-sensor reference, so the Accra curve overestimated by about 35%. Recalibrate before using the tool in any other country. The sites differ: at 3 sensors the share is 0.42 at one and 0.32 at the other, and the cross-site mean error is about +28% and −23%.
 - The reference count is the union of about 19 sensors, not a utility record, and it is not saturated: the share still rises from 0.81 at 12 sensors to 0.95 at 16. The real miss rate is higher than reported. Outages that no sensor saw cannot be checked on real data.
 - **Low sensor uptime breaks the curve.** In simulation, a curve learned at uptime 0.8 underestimated the total by 12% (8 sensors) to 43% (3 sensors) at uptime 0.5, and an outage-size mix unlike Accra's gives errors of about 40% at 3 sensors. The estimate does **not** use uptime; the app only warns when uptime is below 0.65 or missing.
 - Single months are noisy: the median error is about 44% at three sensors even with the curve from the other dense site, against 67% for the raw count.
@@ -182,7 +182,7 @@ streamlit_app.py        the app (Streamlit)
 outage_gap/             core.py (curve and estimate), batch.py (CSV), count_events.py (counting rule), calibration.json
 api/                    FastAPI service and demo page
 calibration/            the subsampling draws and the script that builds the curve
-reproduce/              scripts that rebuild the draws from the raw nLine files and check the tool end to end
+reproduce/              scripts that rebuild the draws from the raw nLine files, check the tool end to end, and the Sierra Leone check
 tests/                  14 tests (core, counting rule, calibration, batch, API routes, Streamlit screen)
 docs/                   screenshots, practical-use guide
 ```

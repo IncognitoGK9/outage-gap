@@ -29,7 +29,7 @@ The curve was measured in Accra. A second city needs its own dense reference sit
 - It cannot find outages that no sensor saw, or transformers with no sensor.
 - It does not correct outage duration (SAIDI).
 - It is not a substitute for a utility outage record where one exists. Use it where the sensors are the only low-voltage record.
-- It has not been tested outside Accra.
+- It did not transfer to Sierra Leone in a preliminary check (6 site-months), so it must be recalibrated outside Accra.
 
 ## Practical limits in low-resource settings
 - Data bundles and power cuts: use the offline CSV tool, and keep the Streamlit app for demonstrations.
