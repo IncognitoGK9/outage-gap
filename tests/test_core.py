@@ -84,3 +84,12 @@ def test_counting_rule_script():
             rows.append(dict(device=dev, time=pd.Timestamp("2024-01-01") + pd.Timedelta(minutes=30 * i), on_battery=1 if (dev in "ab" and 2 <= i <= 4) or (dev == "c" and i == 8) else 0))
     r = count_events(pd.DataFrame(rows))
     assert r["events_2plus"] == 1 and r["events_1_only"] == 1 and r["sensors"] == 3
+
+
+def test_plain_english_explanations():
+    from outage_gap.core import plan
+    from outage_gap.explain import explain_estimate, explain_plan
+    e = explain_estimate(estimate(3, 24))
+    assert "counted 24 outages" in e["headline"] and len(e["steps"]) == 3 and e["how_sure"]
+    assert "very wide" in e["how_sure"]            # k=3 range is 0.54 to 3.35 times
+    assert "sensors" in explain_plan(plan(0.5))["headline"]

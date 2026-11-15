@@ -6,6 +6,7 @@ import streamlit as st
 from outage_gap import demo
 from outage_gap.batch import run as run_batch
 from outage_gap.calibrate import calibrate
+from outage_gap.explain import explain_curve, explain_demo, explain_estimate, explain_plan
 from outage_gap.core import CAL, check_calibration, estimate, plan, sizes_of
 from outage_gap.count_events import count_by_site
 
@@ -41,8 +42,11 @@ with tabs[0]:
     m1.metric("Estimated total", f"{r.estimated_total:g}")
     m2.metric("Counted", r.observed_events)
     m3.metric("Estimated missed", f"{r.estimated_missed:g}")
-    st.write(f"80% range for the total: **{r.range_80[0]:g} to {r.range_80[1]:g}**. "
-             f"Detection share used: {r.detection_share:.2f} (the site counts about this share of the outages that 2 or more sensors saw).")
+    ex = explain_estimate(r)
+    st.success("**What this means.** " + ex["headline"])
+    st.markdown("**How we got there**\n" + "\n".join(f"{i}. {t}" for i, t in enumerate(ex["steps"], 1)))
+    st.info("**How sure can you be?** " + ex["how_sure"] + " " + ex["advice"])
+    st.caption("In the chart: Counted is what the site saw; Low and High are the 80% range; Estimate is the best guess.")
     chart = pd.DataFrame({"Bar": ["1 Counted", "2 Low", "3 Estimate", "4 High"],
                           "Outages": [r.observed_events, r.range_80[0], r.estimated_total, r.range_80[1]]})
     st.bar_chart(chart, x="Bar", y="Outages", x_label="", height=230)
@@ -76,9 +80,14 @@ with tabs[1]:
         except ValueError as e:
             st.error(str(e))
     for nm, cv in st.session_state["curves"].items():
-        st.markdown(f"**{nm}**: {cv['n_sites']} site(s), {cv['n_site_months']} site-months, range from {cv['range_method']}.")
-        st.dataframe(pd.DataFrame([{"Sensors": int(k), "Detection share": p["c"], "Range low (10%)": f"{p['err_q10']:+.0%}",
-                                    "Range high (90%)": f"{p['err_q90']:+.0%}", "Median single-month error": f"{p['median_abs_err']:.0%}"}
+        ex = explain_curve(cv)
+        st.markdown(f"**{nm}**")
+        st.success(ex["headline"])
+        st.markdown("\n".join("- " + l for l in ex["lines"]))
+        st.info("**How sure can you be?** " + ex["how_sure"])
+        st.caption(f"Technical detail: {cv['n_sites']} site(s), {cv['n_site_months']} site-months, range from {cv['range_method']}.")
+        st.dataframe(pd.DataFrame([{"Sensors": int(k), "Detection share": p["c"], "Typical error if the estimate is too high (10% of cases)": f"{p['err_q10']:+.0%}",
+                                    "Typical error if too low (90% of cases)": f"{p['err_q90']:+.0%}", "Typical error in one month": f"{p['median_abs_err']:.0%}"}
                                    for k, p in cv["k"].items()]), hide_index=True)
         for w in cv["warnings"]:
             st.caption("Note: " + w)
@@ -112,6 +121,9 @@ with tabs[2]:
                 except ValueError as err:
                     out.append(dict(site=x["site"], period=x["period"], sensors=x["sensors"], counted=x["events_2plus"], error=str(err)))
             table = pd.DataFrame(out)
+            st.markdown("**In words.** Each row is one site and period. 'counted' is what the sensors saw; 'estimated_total' is our "
+                        "best guess of the real number; 'low_80' and 'high_80' are the range we are fairly sure about; "
+                        "'uptime' is how much of the time the sensors reported.")
             st.dataframe(table, hide_index=True)
             st.download_button("Download estimates (CSV)", table.to_csv(index=False), "outage_gap_analysis.csv", "text/csv")
             st.caption(f"Curve used: {choice}. Short periods are noisy; prefer quarters or years.")
@@ -126,7 +138,11 @@ with tabs[3]:
     if st.button("Run the dummy-site test"):
         res = demo.run()
         df = pd.DataFrame(res["rows"])
-        st.write("**Mean absolute error by site (percent)**: raw count, shipped Accra curve, own curve measured on the dummy dense sites.")
+        ex = explain_demo(res)
+        st.success(ex["headline"])
+        st.markdown("\n".join("- " + l for l in ex["lines"]))
+        st.info("**What to take from this.** " + ex["how_sure"])
+        st.write("**Details. Mean absolute error by site (percent)**: raw count, shipped Accra curve, own curve measured on the dummy dense sites.")
         st.dataframe(pd.DataFrame(res["summary"]).rename(columns={
             "mean_abs_error_pct_raw_count": "Raw count", "mean_abs_error_pct_accra_curve": "Accra curve",
             "mean_abs_error_pct_own_curve": "Own curve"}), hide_index=True)
@@ -148,10 +164,13 @@ with tabs[3]:
 with tabs[4]:
     target = st.slider("Share of the reference outages a site should count", 0.3, 0.95, 0.7, 0.05)
     p = plan(target, cal)
+    ex = explain_plan(p)
     if p["sensors_needed"]:
         st.metric("Sensors needed", p["sensors_needed"])
+        st.success(ex["headline"])
     else:
-        st.warning("No tested sensor count reaches this share.")
+        st.warning(ex["headline"])
+    st.caption(ex["how_sure"])
     st.dataframe(pd.DataFrame(p["table"]).rename(columns={"detection_share": "share counted", "missed_per_100": "missed per 100",
                                                           "median_single_month_error": "median single-month error", "has_range": "has range"}),
                  hide_index=True)

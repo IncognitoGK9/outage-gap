@@ -377,3 +377,7 @@ See `CITATION.cff`. Paper: Z. Ombiro, "Detection-Curve Correction of Missed-Outa
 ## Contact
 
 Zablon Ombiro, Strathmore University, Nairobi, Kenya. zablon.ombiro@strathmore.edu
+
+## Plain-English results
+
+Every result in the app and the API comes with a short explanation for non-technical readers: what the numbers mean, how we got there, how sure you can be, and what to do next (`outage_gap/explain.py`; the API returns it in the `explanation` field).

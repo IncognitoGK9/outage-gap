@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from outage_gap import batch, demo
 from outage_gap.calibrate import calibrate as run_calibrate
 from outage_gap.core import CAL, SIZES, check_calibration, estimate, plan
+from outage_gap.explain import explain_curve, explain_demo, explain_estimate, explain_plan
 from outage_gap.count_events import PERIODS, count_by_site
 
 MAX_UPLOAD_MB = 60
@@ -88,6 +89,7 @@ class Answer(BaseModel):
     interpolated: bool
     curve: str
     warnings: List[str]
+    explanation: Optional[dict] = Field(None, description="Plain-English reading of the result: headline, steps, how sure, advice.")
 
 
 class SiteQuery(BaseModel):
@@ -120,7 +122,8 @@ def post_estimate(q: Query):
     """One site: counted events and sensor count in, estimated total and 80% range out."""
     cal = _resolve(q.calibration_id, q.calibration)
     try:
-        return asdict(estimate(q.sensors, q.observed_events, q.uptime, cal))
+        r = estimate(q.sensors, q.observed_events, q.uptime, cal)
+        return dict(asdict(r), explanation=explain_estimate(r))
     except ValueError as e:
         raise HTTPException(422, str(e))
 
@@ -132,7 +135,8 @@ def post_estimate_batch(b: BatchQuery):
     out = []
     for i, s in enumerate(b.sites):
         try:
-            out.append(dict(site=s.site or f"row{i + 1}", **asdict(estimate(s.sensors, s.observed_events, s.uptime, cal))))
+            r = estimate(s.sensors, s.observed_events, s.uptime, cal)
+            out.append(dict(site=s.site or f"row{i + 1}", **asdict(r), plain_english=explain_estimate(r)["headline"]))
         except ValueError as e:
             out.append(dict(site=s.site or f"row{i + 1}", error=str(e)))
     return out
@@ -199,7 +203,7 @@ async def post_calibrate(file: UploadFile = File(..., description="Raw sensor fi
     cid = _put(cal)
     summary = [dict(sensors=int(k), detection_share=p["c"], range_10_90_pct=[round(100 * p["err_q10"]), round(100 * p["err_q90"])],
                     median_single_month_error=p["median_abs_err"]) for k, p in cal["k"].items()]
-    return dict(calibration_id=cid, calibration=cal, summary=summary, warnings=cal["warnings"])
+    return dict(calibration_id=cid, calibration=cal, summary=summary, warnings=cal["warnings"], explanation=explain_curve(cal))
 
 
 @app.get("/calibrations/{calibration_id}", tags=["your own curve"])
@@ -213,7 +217,8 @@ def get_plan(target_share: float = QParam(0.7, gt=0, le=1, description="Share of
              calibration_id: Optional[str] = None):
     """How many sensors does a site need to count at least `target_share` of the outages the dense reference saw?"""
     try:
-        return plan(target_share, _resolve(calibration_id))
+        p = plan(target_share, _resolve(calibration_id))
+        return dict(p, explanation=explain_plan(p))
     except ValueError as e:
         raise HTTPException(422, str(e))
 
@@ -246,7 +251,8 @@ def demo_sparse():
 @app.get("/demo/run", tags=["dummy sites"])
 def demo_run():
     """Whole pipeline on the dummy sites, compared with the known truth: raw count, shipped Accra curve, own curve."""
-    return demo.run()
+    res = demo.run()
+    return dict(res, explanation=explain_demo(res))
 
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
